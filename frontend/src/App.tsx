@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { authAPI, filesAPI } from './services/api';
+import { authAPI, filesAPI, userAPI } from './services/api';
 import toast, { Toaster } from 'react-hot-toast';
-import { Upload, File, Download, Trash2, LogOut, HardDrive } from 'lucide-react';
+import { Upload, File, Download, LogOut, HardDrive, Trash2 } from 'lucide-react';
 
 interface User {
   id: number;
@@ -84,7 +84,10 @@ function App() {
       if (response.errors && response.errors.length > 0) {
         response.errors.forEach((error: string) => toast.error(error));
       }
-      loadFiles();
+      
+      // Refresh both files and user data to get updated storage savings
+      await Promise.all([loadFiles(), loadUserData()]);
+      
       // Reset file input
       e.target.value = '';
     } catch (error: any) {
@@ -102,12 +105,94 @@ function App() {
     }
   };
 
+  const loadUserData = async () => {
+    try {
+      const userData = await userAPI.getProfile();
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      console.log('User data refreshed:', userData);
+    } catch (error) {
+      console.error('Failed to load user data:', error);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
     setFiles([]);
     toast.success('Logged out successfully');
+  };
+
+  const downloadFile = async (file: FileItem) => {
+    console.log('=== DOWNLOAD BUTTON CLICKED IN APP ===');
+    console.log('File details:', file);
+    
+    try {
+      console.log('Starting download for file:', file.id, file.original_name);
+      
+      const response = await filesAPI.downloadFile(file.id);
+      console.log('Download response received:', response);
+      
+      // Check if response is valid
+      if (!response.data) {
+        console.error('No data received from server');
+        throw new Error('No data received from server');
+      }
+      
+      console.log('Creating blob URL...');
+      const url = window.URL.createObjectURL(response.data);
+      console.log('Blob URL created:', url);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.original_name;
+      
+      console.log('Triggering download...');
+      document.body.appendChild(a);
+      a.click();
+      
+      console.log('Cleaning up...');
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      console.log('Download completed successfully');
+      toast.success('File downloaded successfully');
+      
+      // Reload files and user data to update download count and any storage changes
+      await Promise.all([loadFiles(), loadUserData()]);
+    } catch (error: any) {
+      console.error('=== DOWNLOAD ERROR IN APP ===');
+      console.error('Full error object:', error);
+      
+      if (error.response) {
+        console.error('Error response status:', error.response.status);
+        console.error('Error response data:', error.response.data);
+        console.error('Error response headers:', error.response.headers);
+        toast.error(`Failed to download file: ${error.response.status} ${error.response.statusText}`);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+        toast.error('Failed to download file: No response from server');
+      } else {
+        console.error('Error message:', error.message);
+        toast.error(`Failed to download file: ${error.message}`);
+      }
+    }
+  };
+
+  const deleteFile = async (file: FileItem) => {
+    if (!confirm(`Are you sure you want to delete "${file.original_name}"?`)) return;
+    
+    try {
+      await filesAPI.deleteFile(file.id);
+      toast.success('File deleted successfully');
+      
+      // Refresh both files and user data to get updated storage info
+      await Promise.all([loadFiles(), loadUserData()]);
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete file');
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -326,15 +411,15 @@ function App() {
           ) : (
             <div className="divide-y divide-gray-200">
               {files.map((file) => (
-                <div key={file.id} className="px-6 py-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <File className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-900">
+                <div key={file.id} className="px-6 py-6 hover:bg-gray-50 min-h-[80px]">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                      <File className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-medium text-gray-900 truncate">
                           {file.original_name}
                         </h3>
-                        <div className="flex items-center space-x-2 text-xs text-gray-500">
+                        <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
                           <span>{formatFileSize(file.size)}</span>
                           <span>•</span>
                           <span>{formatDate(file.created_at)}</span>
@@ -348,10 +433,39 @@ function App() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-4 text-sm flex-shrink-0 ml-4">
+                      <div className="flex items-center space-x-1 text-gray-500">
                         <Download className="h-4 w-4" />
-                        <span>{file.downloads}</span>
+                        <span>{file.downloads} downloads</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Download button clicked for file:', file.id);
+                            downloadFile(file);
+                          }}
+                          className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 transition-colors cursor-pointer border border-blue-200"
+                          title="Download file"
+                          type="button"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            deleteFile(file);
+                          }}
+                          className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-700 transition-colors cursor-pointer border border-red-200"
+                          title="Delete file"
+                          type="button"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, FileNode, Directory, Share, StorageStats, SearchFilters } from '../types';
+import { User, StorageStats, SearchFilters } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
@@ -25,6 +25,14 @@ export const authAPI = {
 
   register: async (username: string, email: string, password: string) => {
     const response = await api.post('/auth/register', { username, email, password });
+    return response.data;
+  },
+};
+
+// User API
+export const userAPI = {
+  getProfile: async () => {
+    const response = await api.get('/user/me');
     return response.data;
   },
 };
@@ -55,10 +63,17 @@ export const filesAPI = {
   },
 
   downloadFile: async (fileId: number) => {
-    const response = await api.get(`/files/${fileId}`, {
-      responseType: 'blob',
-    });
-    return response;
+    try {
+      console.log('API: Downloading file ID:', fileId);
+      const response = await api.get(`/files/${fileId}`, {
+        responseType: 'blob',
+      });
+      console.log('API: Download response:', response.status, response.headers);
+      return response;
+    } catch (error) {
+      console.error('API: Download error:', error);
+      throw error;
+    }
   },
 
   deleteFile: async (fileId: number) => {

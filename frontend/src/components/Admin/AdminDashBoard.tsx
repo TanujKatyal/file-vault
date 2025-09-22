@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Files, HardDrive, TrendingUp, 
-  UserCheck, Settings, Activity, Database 
+  Activity, Database 
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { User, StorageStats } from '../../types';
 import { adminAPI } from '../../services/api';
 import { UserManagement } from './UserManagement';

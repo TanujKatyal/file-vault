@@ -455,3 +455,16 @@ func (app *App) getUserID(r *http.Request) uint {
     }
     return userID.(uint)
 }
+
+func (app *App) GetProfile(w http.ResponseWriter, r *http.Request) {
+    userID := app.getUserID(r)
+    
+    var user User
+    if err := app.DB.First(&user, userID).Error; err != nil {
+        http.Error(w, "User not found", http.StatusNotFound)
+        return
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(user)
+}

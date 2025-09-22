@@ -39,6 +39,9 @@ func main() {
     protected.HandleFunc("/files/{id}", app.DownloadFile).Methods("GET")
     protected.HandleFunc("/files/{id}", app.DeleteFile).Methods("DELETE")
     
+    // User profile
+    protected.HandleFunc("/user/me", app.GetProfile).Methods("GET")
+    
     // Directory operations
     protected.HandleFunc("/directories", app.CreateDirectory).Methods("POST")
     protected.HandleFunc("/directories", app.ListDirectory).Methods("GET")

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Search, Filter, Download, Trash2, Share, Eye, 
+  Search, Filter, Download, Trash2, Share,
   FileText, Image, Music, Video, Archive, File 
 } from 'lucide-react';
 import { FileNode, SearchFilters } from '../../types';
-import { filesAPI, sharingAPI } from '../../services/api';
+import { filesAPI } from '../../services/api';
 import { SearchFilters as SearchFiltersComponent } from './SearchFilters';
 import { ShareDialog } from '../Sharing/ShareDialog';
 import toast from 'react-hot-toast';
@@ -66,20 +66,56 @@ export const FileList: React.FC = () => {
     });
   };
 
-  const downloadFile = async (file: FileNode) => {
+    const downloadFile = async (file: FileNode) => {
+    console.log('=== DOWNLOAD BUTTON CLICKED ===');
+    console.log('File details:', file);
+    
     try {
+      console.log('Starting download for file:', file.id, file.original_name);
+      
       const response = await filesAPI.downloadFile(file.id);
+      console.log('Download response received:', response);
+      
+      // Check if response is valid
+      if (!response.data) {
+        console.error('No data received from server');
+        throw new Error('No data received from server');
+      }
+      
+      console.log('Creating blob URL...');
       const url = window.URL.createObjectURL(response.data);
+      console.log('Blob URL created:', url);
+      
       const a = document.createElement('a');
       a.href = url;
       a.download = file.original_name;
+      
+      console.log('Triggering download...');
       document.body.appendChild(a);
       a.click();
+      
+      console.log('Cleaning up...');
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      
+      console.log('Download completed successfully');
       toast.success('File downloaded successfully');
     } catch (error) {
-      toast.error('Failed to download file');
+      console.error('=== DOWNLOAD ERROR ===');
+      console.error('Full error object:', error);
+      
+      if (error.response) {
+        console.error('Error response status:', error.response.status);
+        console.error('Error response data:', error.response.data);
+        console.error('Error response headers:', error.response.headers);
+        toast.error(`Failed to download file: ${error.response.status} ${error.response.statusText}`);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+        toast.error('Failed to download file: No response from server');
+      } else {
+        console.error('Error message:', error.message);
+        toast.error(`Failed to download file: ${error.message}`);
+      }
     }
   };
 
@@ -177,7 +213,10 @@ export const FileList: React.FC = () => {
                 </div>
                 <div className="flex gap-1">
                   <button
-                    onClick={() => downloadFile(file)}
+                    onClick={() => {
+                      console.log('Download button clicked for file:', file.id);
+                      downloadFile(file);
+                    }}
                     className="p-1 text-gray-400 hover:text-blue-600"
                     title="Download"
                   >
@@ -290,7 +329,10 @@ export const FileList: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
                         <button
-                          onClick={() => downloadFile(file)}
+                          onClick={() => {
+                            console.log('Download button clicked (list view) for file:', file.id);
+                            downloadFile(file);
+                          }}
                           className="text-blue-600 hover:text-blue-900"
                         >
                           <Download className="h-4 w-4" />

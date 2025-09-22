@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   HardDrive, Files, Settings, LogOut, User, 
-  Menu, X, Bell, Search 
+  Menu, X 
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
